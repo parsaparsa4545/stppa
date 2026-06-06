@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>برنامه هفتگی درسی</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&amp;display=swap');
+    html{
+        scrollbar-width: none;
+    }
+    body {
+    
+      font-family: 'Vazirmatn', system-ui, sans-serif;
+    }
+    
+    .day-btn {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .day-btn.active {
+      transform: scale(1.03);
+      box-shadow: 0 0 0 3px rgb(16 185 129 / 0.3);
+    }
+    
+    .time-input {
+      font-family: ui-monospace, monospace;
+    }
+    
+    table {
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    
+    .schedule-row:hover {
+      background-color: #18181b;
+    }
+  </style>
+</head>
+<body class="bg-zinc-950 text-white">
+  <div class="max-w-7xl mx-auto p-6">
+    <!-- هدر -->
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-4xl font-bold tracking-tight">برنامه هفتگی درسی</h1>
+        <p class="text-zinc-400 mt-1">روز را انتخاب کن، بازه زمانی اضافه کن و درس را به آن اختصاص بده</p>
+      </div>
+      <button onclick="clearAll()" 
+              class="px-5 py-2.5 text-sm bg-zinc-900 hover:bg-red-950 border border-zinc-800 hover:border-red-900 rounded-2xl transition-colors flex items-center gap-2">
+        <span>🗑️</span>
+        <span>پاک کردن همه</span>
+      </button>
+    </div>
+
+    <!-- بخش درس‌ها (بالا) -->
+    <div class="mb-8">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-2 h-2 bg-emerald-500 rounded-full"></div>
+        <h2 class="font-semibold text-lg">درس‌ها</h2>
+      </div>
+      <div id="subject-buttons" class="flex flex-wrap gap-3"></div>
+    </div>
+
+    <!-- روزهای هفته -->
+    <div class="mb-6">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-2 h-2 bg-sky-500 rounded-full"></div>
+        <h2 class="font-semibold text-lg">روزهای هفته — کلیک کن تا بازه اضافه کنی</h2>
+      </div>
+      <div id="day-buttons" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-3"></div>
+    </div>
+
+    <!-- پنل افزودن بازه زمانی (پایین روزها) -->
+    <div id="add-panel" class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 mb-8">
+      <div class="flex items-center justify-between mb-5">
+        <h3 id="add-panel-title" class="text-xl font-bold">افزودن بازه زمانی برای شنبه</h3>
+        <div class="text-xs px-3 py-1 bg-zinc-800 rounded-2xl text-zinc-400">چندین بار می‌تونی اضافه کنی</div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+        <!-- زمان شروع -->
+        <div class="md:col-span-3">
+          <label class="block text-sm text-zinc-400 mb-1.5">زمان شروع</label>
+          <input type="time" id="start-time" value="15:30" 
+                 class="time-input w-full bg-zinc-950 border border-zinc-700 focus:border-emerald-500 rounded-2xl px-4 py-3 text-lg outline-none">
+        </div>
+
+        <!-- زمان پایان -->
+        <div class="md:col-span-3">
+          <label class="block text-sm text-zinc-400 mb-1.5">زمان پایان</label>
+          <input type="time" id="end-time" value="16:15" 
+                 class="time-input w-full bg-zinc-950 border border-zinc-700 focus:border-emerald-500 rounded-2xl px-4 py-3 text-lg outline-none">
+        </div>
+
+        <!-- درس -->
+        <div class="md:col-span-4">
+          <label class="block text-sm text-zinc-400 mb-1.5">درس</label>
+          <select id="subject-select" 
+                  class="w-full bg-zinc-950 border border-zinc-700 focus:border-emerald-500 rounded-2xl px-4 py-[13px] text-lg outline-none">
+          </select>
+        </div>
+
+        <!-- دکمه افزودن -->
+        <div class="md:col-span-2 flex items-end">
+          <button onclick="addTimeSlot()" 
+                  class="w-full bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 transition-all text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 text-lg shadow-lg shadow-emerald-950">
+            <span>➕</span>
+            <span>افزودن</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- بازه‌های روز انتخاب‌شده -->
+    <div class="mb-10">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-lg">بازه‌های زمانی <span id="current-day-name" class="font-bold text-emerald-400">شنبه</span></h3>
+      </div>
+      <div id="day-slots-list" class="space-y-2 min-h-[80px]"></div>
+    </div>
+
+    <!-- جدول کامل برنامه هفتگی -->
+    <div>
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="font-bold text-2xl">جدول برنامه هفتگی</h2>
+        <div class="text-xs text-zinc-500">به‌روز می‌شود به محض اضافه کردن</div>
+      </div>
+      
+      <div class="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden">
+        <table class="w-full">
+          <thead>
+            <tr class="border-b border-zinc-800 bg-zinc-950">
+              <th class="px-6 py-4 text-right font-semibold text-zinc-400 w-40">روز</th>
+              <th class="px-6 py-4 text-right font-semibold text-zinc-400">شروع</th>
+              <th class="px-6 py-4 text-right font-semibold text-zinc-400">پایان</th>
+              <th class="px-6 py-4 text-right font-semibold text-zinc-400">درس</th>
+              <th class="px-6 py-4 w-24"></th>
+            </tr>
+          </thead>
+          <tbody id="schedule-table-body" class="text-sm"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="mt-6 text-center text-xs text-zinc-500">
+      برنامه‌ات به صورت خودکار در مرورگر ذخیره می‌شود
+    </div>
+  </div>
+
+  <script>
+    // ==================== داده‌ها ====================
+    let schedule = {};
+    const daysList = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
+    const subjectsList = ["زیست", "ریاضی", "شیمی", "انگلیسی", "فیزیک"];
+    
+    const subjectColors = {
+      "زیست": "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+      "ریاضی": "bg-sky-500/10 text-sky-400 border-sky-500/30",
+      "شیمی": "bg-violet-500/10 text-violet-400 border-violet-500/30",
+      "انگلیسی": "bg-rose-500/10 text-rose-400 border-rose-500/30",
+      "فیزیک": "bg-amber-500/10 text-amber-400 border-amber-500/30"
+    };
+
+    let currentDay = "شنبه";
+    let currentSubject = "ریاضی";
+
+    // ==================== توابع کمکی ====================
+    function loadSchedule() {
+      const saved = localStorage.getItem('weeklySchedule');
+      if (saved) {
+        schedule = JSON.parse(saved);
+      }
+      // اطمینان از وجود همه روزها
+      daysList.forEach(day => {
+        if (!schedule[day]) schedule[day] = [];
+      });
+    }
+
+    function saveSchedule() {
+      localStorage.setItem('weeklySchedule', JSON.stringify(schedule));
+    }
+
+    // ==================== رندر دکمه‌های درس ====================
+    function renderSubjectButtons() {
+      const container = document.getElementById('subject-buttons');
+      container.innerHTML = '';
+      
+      subjectsList.forEach(subject => {
+        const btn = document.createElement('button');
+        btn.className = `px-6 py-2.5 rounded-2xl border text-sm font-medium flex items-center gap-2 transition-all hover:scale-[1.02] ${subjectColors[subject]}`;
+        
+        if (subject === currentSubject) {
+          btn.classList.add('ring-2', 'ring-offset-2', 'ring-offset-zinc-950', 'ring-white', 'scale-[1.02]');
+        }
+        
+        btn.innerHTML = `<span class="font-bold">${subject}</span>`;
+        
+        btn.onclick = () => {
+          currentSubject = subject;
+          const select = document.getElementById('subject-select');
+          if (select) select.value = subject;
+          renderSubjectButtons();
+        };
+        
+        container.appendChild(btn);
+      });
+    }
+
+    // ==================== رندر دکمه‌های روز ====================
+    function renderDayButtons() {
+      const container = document.getElementById('day-buttons');
+      container.innerHTML = '';
+      
+      daysList.forEach(day => {
+        const count = (schedule[day] || []).length;
+        
+        const btn = document.createElement('button');
+        btn.className = `day-btn flex flex-col items-center justify-center p-5 rounded-3xl border text-center w-full 
+          ${currentDay === day 
+            ? 'bg-emerald-600 border-emerald-500 active' 
+            : 'bg-zinc-900 border-zinc-800 hover:bg-zinc-800 hover:border-zinc-700'}`;
+        
+        btn.innerHTML = `
+          <div class="text-3xl mb-2">📅</div>
+          <div class="font-extrabold text-xl tracking-tight">${day}</div>
+          ${count > 0 ? 
+            `<div class="mt-2 text-[10px] px-3 py-0.5 rounded-full bg-white/10 font-medium">${count} بازه</div>` : 
+            `<div class="mt-2 text-[10px] px-3 py-0.5 rounded-full bg-white/5 text-zinc-500">خالی</div>`
+          }
+        `;
+        
+        btn.onclick = () => selectDay(day);
+        container.appendChild(btn);
+      });
+    }
+
+    // ==================== انتخاب روز ====================
+    function selectDay(day) {
+      currentDay = day;
+      
+      // به‌روزرسانی عنوان پنل
+      document.getElementById('add-panel-title').innerHTML = 
+        `افزودن بازه زمانی برای <span class="font-extrabold text-emerald-400">${day}</span>`;
+      
+      document.getElementById('current-day-name').textContent = day;
+      
+      // به‌روزرسانی هایلایت دکمه‌ها
+      renderDayButtons();
+      
+      // نمایش لیست بازه‌های آن روز
+      renderDaySlotsList();
+    }
+
+    // ==================== رندر لیست بازه‌های روز جاری ====================
+    function renderDaySlotsList() {
+      const container = document.getElementById('day-slots-list');
+      container.innerHTML = '';
+      
+      const slots = schedule[currentDay] || [];
+      
+      if (slots.length === 0) {
+        container.innerHTML = `
+          <div class="flex flex-col items-center justify-center py-8 text-center bg-zinc-900 border border-zinc-800 rounded-3xl">
+            <div class="text-4xl mb-3 opacity-40">🕒</div>
+            <p class="text-zinc-400 text-sm">هنوز هیچ بازه زمانی برای این روز ثبت نشده</p>
+          </div>
+        `;
+        return;
+      }
+      
+      slots.forEach((slot, index) => {
+        const div = document.createElement('div');
+        div.className = `flex items-center justify-between bg-zinc-900 border border-zinc-700 hover:border-zinc-600 rounded-2xl px-6 py-4 transition-colors`;
+        
+        const colorClass = subjectColors[slot.subject] || 'bg-zinc-700 text-zinc-300';
+        
+        div.innerHTML = `
+          <div class="flex items-center gap-5">
+            <div>
+              <span class="font-mono text-2xl font-bold tracking-tighter">${slot.start}</span>
+              <span class="mx-3 text-zinc-500">→</span>
+              <span class="font-mono text-2xl font-bold tracking-tighter">${slot.end}</span>
+            </div>
+            <div class="px-5 py-2 text-sm font-bold rounded-2xl border ${colorClass}">
+              ${slot.subject}
+            </div>
+          </div>
+          
+          <button onclick="deleteSlot('${currentDay}', ${index})" 
+                  class="flex items-center justify-center w-10 h-10 text-red-400 hover:text-red-500 hover:bg-red-950/30 rounded-2xl transition-all">
+            🗑️
+          </button>
+        `;
+        
+        container.appendChild(div);
+      });
+    }
+
+    // ==================== افزودن بازه زمانی ====================
+    function addTimeSlot() {
+      const start = document.getElementById('start-time').value;
+      const end = document.getElementById('end-time').value;
+      const subject = document.getElementById('subject-select').value;
+      
+      if (!start || !end) {
+        alert("لطفاً زمان شروع و پایان را وارد کنید");
+        return;
+      }
+      
+      if (start >= end) {
+        if (!confirm("زمان پایان قبل یا برابر زمان شروع است. ادامه می‌دهی؟")) {
+          return;
+        }
+      }
+      
+      if (!schedule[currentDay]) schedule[currentDay] = [];
+      
+      schedule[currentDay].push({ start, end, subject });
+      
+      // مرتب‌سازی بر اساس زمان شروع
+      schedule[currentDay].sort((a, b) => a.start.localeCompare(b.start));
+      
+      saveSchedule();
+      
+      // به‌روزرسانی رابط کاربری
+      renderDaySlotsList();
+      renderDayButtons();
+      renderFullTable();
+    }
+
+    // ==================== حذف بازه ====================
+    function deleteSlot(day, index) {
+      if (!schedule[day]) return;
+      
+      schedule[day].splice(index, 1);
+      saveSchedule();
+      
+      renderDaySlotsList();
+      renderDayButtons();
+      renderFullTable();
+    }
+
+    // ==================== رندر جدول کامل ====================
+    function renderFullTable() {
+      const tbody = document.getElementById('schedule-table-body');
+      tbody.innerHTML = '';
+      
+      let hasData = false;
+      
+      daysList.forEach(day => {
+        const slots = schedule[day] || [];
+        if (slots.length === 0) return;
+        
+        hasData = true;
+        
+        slots.forEach((slot, index) => {
+          const tr = document.createElement('tr');
+          tr.className = `schedule-row border-b border-zinc-800`;
+          
+          const colorClass = subjectColors[slot.subject] || 'bg-zinc-700 text-zinc-300 border-zinc-600';
+          
+          tr.innerHTML = `
+            <td class="px-6 py-4 font-extrabold text-lg">${day}</td>
+            <td class="px-6 py-4">
+              <span class="font-mono text-emerald-400 font-bold">${slot.start}</span>
+            </td>
+            <td class="px-6 py-4">
+              <span class="font-mono text-red-400 font-bold">${slot.end}</span>
+            </td>
+            <td class="px-6 py-4">
+              <span class="inline-block px-5 py-1.5 text-sm font-bold rounded-2xl border ${colorClass}">
+                ${slot.subject}
+              </span>
+            </td>
+            <td class="px-6 py-4">
+              <button onclick="deleteSlot('${day}', ${index})" 
+                      class="text-xs px-4 py-2 rounded-2xl bg-zinc-800 hover:bg-red-950 text-red-400 hover:text-red-300 transition-colors">
+                حذف
+              </button>
+            </td>
+          `;
+          
+          tbody.appendChild(tr);
+        });
+      });
+      
+      if (!hasData) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td colspan="5" class="px-6 py-16 text-center">
+            <div class="flex flex-col items-center justify-center">
+              <div class="text-5xl mb-4 opacity-30">📋</div>
+              <p class="text-zinc-400">هنوز هیچ بازه زمانی‌ای اضافه نشده است</p>
+              <p class="text-xs text-zinc-500 mt-1">از دکمه‌های روز در بالا شروع کن</p>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    // ==================== پاک کردن همه ====================
+    function clearAll() {
+      if (!confirm("آیا مطمئنی که می‌خوای همه برنامه‌ها پاک بشن؟")) return;
+      
+      daysList.forEach(day => {
+        schedule[day] = [];
+      });
+      
+      saveSchedule();
+      renderDayButtons();
+      renderDaySlotsList();
+      renderFullTable();
+    }
+
+    // ==================== راه‌اندازی اولیه ====================
+    function init() {
+      loadSchedule();
+      
+      // رندر دکمه‌های درس
+      renderSubjectButtons();
+      
+      // رندر دکمه‌های روز
+      renderDayButtons();
+      
+      // پر کردن سلکت درس‌ها
+      const select = document.getElementById('subject-select');
+      select.innerHTML = subjectsList.map(s => 
+        `<option value="${s}">${s}</option>`
+      ).join('');
+      select.value = currentSubject;
+      
+      // همگام‌سازی سلکت با دکمه‌های بالا
+      select.addEventListener('change', function() {
+        currentSubject = this.value;
+        renderSubjectButtons();
+      });
+      
+      // انتخاب روز اول
+      selectDay(currentDay);
+      
+      // رندر جدول
+      renderFullTable();
+      
+      // پیام خوش‌آمدگویی کوچک
+      setTimeout(() => {
+        if (Object.values(schedule).every(arr => arr.length === 0)) {
+          console.log('%c[برنامه هفتگی] آماده استفاده است. روز را انتخاب کن و بازه اضافه کن.', 'color:#3f3f46');
+        }
+      }, 800);
+    }
+
+    // شروع برنامه
+    window.onload = init;
+  </script>
+</body>
+</html>
